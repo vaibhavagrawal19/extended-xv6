@@ -1,0 +1,41 @@
+1) To implement strace we needed to know the syscalls and their arguments that the process calls. For this the process makes an ecall instruction
+and hence the process state gets interrupted in the next cycle. The interrupt handler takes the process state to syscall.c, takes the syscall number
+from a7 register and also the other arguments starting from a0. To track which syscall was made, we can just recored the a7 register and for the arguments the
+registers a0,a1 ... To get the mask we put the mask in struct proc and used it to know which syscalls to record.
+The return value of the syscall was obtained from a0;
+
+2) For implementing sigalarm and sigreturn, we need to keep a few more values in struct proc. We store the function address, the number of ticks after which the 
+funciton has to be run, and the copy of the trapframe. The copy of the trapframe has been made because the values of the registers could be changed
+in the handler function. After every tick, a timer interrupt will be there, and if there are n ticks, then we store the current trapframe into the struct proc,
+and change the epc to the address of th ehandler function. After sigreturn is called, we just point the trapframe to the copy trapframe, so as to restore
+the program state before the handler was called
+
+3) 
+a) FCFS 
+For implementing FCFS, whenever a process is created we recored its start time. Then we have a for loop which always scans the runnable process
+with the shortest creation time. After the process has been selected, we switch the context of the cpu.
+
+b) LBS
+For implementing LBS, we took a random value of a variable (generated using the pseudo random generator given in grind.c) and we adjusted its value between 0 and
+the total number of ticks (of all RUNNABLE processes combined). Then we kept a variable sum initialised to zero, and to which we add the number of ticks
+of the processes one by one, and if the sum variable goes greater than our random number, then we stop and select the process that we were currently on.
+
+c) PBS
+For implementing PBS, we have to keep the record of the time in which process is sleeping, time in which process is running, the nice and the static priority of
+the process. In the allocprocess funciton, we initialised the values. In the sleep function, we recorded the ticks(global variable) value in 
+the last_sleep_tick variable. In the wakeup function we incremenetd the sleeping time of the process by the difference of thecurrent tick value and
+the las_sleep_tick variable. The nice values are updated in the yield and the wakeup funciton. So, the scheduler picks the process with the lowest
+dynamic priority based on the relations given in the pdf, and runs that process.
+
+d) MLFQ
+For implementing MLFQ, we maintain 5 queues(implemented using linked lists). For each queue, we maintain a list of processes, and the ticks 
+that the queue represents. Whenever we allcoate a process, in the allocproc function we call the add_to_queue function which puths the process to the
+first queue. In the scheduler, we first scan each queue to see if there were any sleeping processes. If so, we remove it. If there are any zombie
+processes in the queue, then also we remove it. Finally we scan all the queues to figure out the first RUNNABLE process, and we run it.
+
+4) COW
+For implementing COW, we know that the interrupt/exception scause value corresponding to it was 15 or 13. Hence we added an exception to trap.c.
+During fork, where the copy of the address space is made (uvmcopy ), we change that function, and map the virtual addresses to the same physical addresses,
+and remove the write permissions. To implement cow, we also have to recored the reference count of all the pages by the processes in the system. 
+Whenever the reference count is more than 1, we just allocate a new page and map it to that virtual address. If it is equal to 1, then we simply
+have the write permissions given to that page. 
